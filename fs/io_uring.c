@@ -860,14 +860,12 @@ static void __io_commit_cqring(struct io_ring_ctx *ctx)
 {
 	struct io_rings *rings = ctx->rings;
 
-	if (ctx->cached_cq_tail != READ_ONCE(rings->cq.tail)) {
-		/* order cqe stores with ring update */
-		smp_store_release(&rings->cq.tail, ctx->cached_cq_tail);
+	/* order cqe stores with ring update */
+	smp_store_release(&rings->cq.tail, ctx->cached_cq_tail);
 
-		if (wq_has_sleeper(&ctx->cq_wait)) {
-			wake_up_interruptible(&ctx->cq_wait);
-			kill_fasync(&ctx->cq_fasync, SIGIO, POLL_IN);
-		}
+	if (wq_has_sleeper(&ctx->cq_wait)) {
+		wake_up_interruptible(&ctx->cq_wait);
+		kill_fasync(&ctx->cq_fasync, SIGIO, POLL_IN);
 	}
 }
 
