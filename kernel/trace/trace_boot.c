@@ -322,7 +322,7 @@ trace_boot_init_instances(struct xbc_node *node)
 			continue;
 
 		tr = trace_array_get_by_name(p);
-		if (IS_ERR(tr)) {
+		if (!tr) {
 			pr_err("Failed to get trace instance %s\n", p);
 			continue;
 		}
