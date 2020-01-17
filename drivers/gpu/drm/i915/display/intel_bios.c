@@ -2599,3 +2599,10 @@ int intel_bios_dp_max_link_rate(struct intel_encoder *encoder)
 
 	return i915->vbt.ddi_port_info[encoder->port].dp_max_link_rate;
 }
+
+int intel_bios_alternate_ddc_pin(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
+	return i915->vbt.ddi_port_info[encoder->port].alternate_ddc_pin;
+}

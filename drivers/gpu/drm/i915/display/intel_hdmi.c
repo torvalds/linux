@@ -3054,17 +3054,17 @@ static u8 g4x_port_to_ddc_pin(struct drm_i915_private *dev_priv,
 	return ddc_pin;
 }
 
-static u8 intel_hdmi_ddc_pin(struct drm_i915_private *dev_priv,
-			     enum port port)
+static u8 intel_hdmi_ddc_pin(struct intel_encoder *encoder)
 {
-	const struct ddi_vbt_port_info *info =
-		&dev_priv->vbt.ddi_port_info[port];
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum port port = encoder->port;
 	u8 ddc_pin;
 
-	if (info->alternate_ddc_pin) {
+	ddc_pin = intel_bios_alternate_ddc_pin(encoder);
+	if (ddc_pin) {
 		DRM_DEBUG_KMS("Using DDC pin 0x%x for port %c (VBT)\n",
-			      info->alternate_ddc_pin, port_name(port));
-		return info->alternate_ddc_pin;
+			      ddc_pin, port_name(port));
+		return ddc_pin;
 	}
 
 	if (HAS_PCH_MCC(dev_priv))
@@ -3150,7 +3150,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 		 intel_encoder->base.name))
 		return;
 
-	intel_hdmi->ddc_bus = intel_hdmi_ddc_pin(dev_priv, port);
+	intel_hdmi->ddc_bus = intel_hdmi_ddc_pin(intel_encoder);
 	ddc = intel_gmbus_get_adapter(dev_priv, intel_hdmi->ddc_bus);
 
 	drm_connector_init_with_ddc(dev, connector,
