@@ -208,6 +208,10 @@ static LIST_HEAD(ima_policy_rules);
 static LIST_HEAD(ima_temp_rules);
 static struct list_head *ima_rules;
 
+/* Pre-allocated buffer used for matching keyrings. */
+static char *ima_keyrings;
+static size_t ima_keyrings_len;
+
 static int ima_policy __initdata;
 
 static int __init default_measure_policy_setup(char *str)
@@ -368,7 +372,7 @@ int ima_lsm_policy_change(struct notifier_block *nb, unsigned long event,
 static bool ima_match_keyring(struct ima_rule_entry *rule,
 			      const char *keyring, const struct cred *cred)
 {
-	char *keyrings, *next_keyring, *keyrings_ptr;
+	char *next_keyring, *keyrings_ptr;
 	bool matched = false;
 
 	if ((rule->flags & IMA_UID) && !rule->uid_op(cred->uid, rule->uid))
@@ -380,23 +384,19 @@ static bool ima_match_keyring(struct ima_rule_entry *rule,
 	if (!keyring)
 		return false;
 
-	keyrings = kstrdup(rule->keyrings, GFP_KERNEL);
-	if (!keyrings)
-		return false;
+	strcpy(ima_keyrings, rule->keyrings);
 
 	/*
 	 * "keyrings=" is specified in the policy in the format below:
 	 * keyrings=.builtin_trusted_keys|.ima|.evm
 	 */
-	keyrings_ptr = keyrings;
+	keyrings_ptr = ima_keyrings;
 	while ((next_keyring = strsep(&keyrings_ptr, "|")) != NULL) {
 		if (!strcmp(next_keyring, keyring)) {
 			matched = true;
 			break;
 		}
 	}
-
-	kfree(keyrings);
 
 	return matched;
 }
@@ -954,6 +954,7 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 	bool uid_token;
 	struct ima_template_desc *template_desc;
 	int result = 0;
+	size_t keyrings_len;
 
 	ab = integrity_audit_log_start(audit_context(), GFP_KERNEL,
 				       AUDIT_INTEGRITY_POLICY_RULE);
@@ -1119,14 +1120,35 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 		case Opt_keyrings:
 			ima_log_string(ab, "keyrings", args[0].from);
 
+			keyrings_len = strlen(args[0].from) + 1;
+
 			if ((entry->keyrings) ||
 			    (entry->action != MEASURE) ||
-			    (entry->func != KEY_CHECK)) {
+			    (entry->func != KEY_CHECK) ||
+			    (keyrings_len < 2)) {
 				result = -EINVAL;
 				break;
 			}
+
+			if (keyrings_len > ima_keyrings_len) {
+				char *tmpbuf;
+
+				tmpbuf = krealloc(ima_keyrings, keyrings_len,
+						  GFP_KERNEL);
+				if (!tmpbuf) {
+					result = -ENOMEM;
+					break;
+				}
+
+				ima_keyrings = tmpbuf;
+				ima_keyrings_len = keyrings_len;
+			}
+
 			entry->keyrings = kstrdup(args[0].from, GFP_KERNEL);
 			if (!entry->keyrings) {
+				kfree(ima_keyrings);
+				ima_keyrings = NULL;
+				ima_keyrings_len = 0;
 				result = -ENOMEM;
 				break;
 			}
