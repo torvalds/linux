@@ -1334,7 +1334,6 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 		goto out;
 	}
 
-	memset(spec, 0, sizeof(*spec));
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_DROP;
 
 	/* Attach drop flow counter */
@@ -1346,7 +1345,7 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 		dest_num++;
 	}
 	vport->ingress.legacy.drop_rule =
-		mlx5_add_flow_rules(vport->ingress.acl, spec,
+		mlx5_add_flow_rules(vport->ingress.acl, NULL,
 				    &flow_act, dst, dest_num);
 	if (IS_ERR(vport->ingress.legacy.drop_rule)) {
 		err = PTR_ERR(vport->ingress.legacy.drop_rule);
@@ -1409,7 +1408,6 @@ static int esw_vport_egress_config(struct mlx5_eswitch *esw,
 	struct mlx5_flow_destination drop_ctr_dst = {0};
 	struct mlx5_flow_destination *dst = NULL;
 	struct mlx5_flow_act flow_act = {0};
-	struct mlx5_flow_spec *spec;
 	int dest_num = 0;
 	int err = 0;
 
@@ -1438,11 +1436,6 @@ static int esw_vport_egress_config(struct mlx5_eswitch *esw,
 	if (err)
 		return err;
 
-	/* Drop others rule (star rule) */
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
-	if (!spec)
-		goto out;
-
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_DROP;
 
 	/* Attach egress drop flow counter */
@@ -1454,7 +1447,7 @@ static int esw_vport_egress_config(struct mlx5_eswitch *esw,
 		dest_num++;
 	}
 	vport->egress.legacy.drop_rule =
-		mlx5_add_flow_rules(vport->egress.acl, spec,
+		mlx5_add_flow_rules(vport->egress.acl, NULL,
 				    &flow_act, dst, dest_num);
 	if (IS_ERR(vport->egress.legacy.drop_rule)) {
 		err = PTR_ERR(vport->egress.legacy.drop_rule);
@@ -1463,8 +1456,7 @@ static int esw_vport_egress_config(struct mlx5_eswitch *esw,
 			 vport->vport, err);
 		vport->egress.legacy.drop_rule = NULL;
 	}
-out:
-	kvfree(spec);
+
 	return err;
 }
 
@@ -2481,12 +2473,11 @@ static int _mlx5_eswitch_set_vepa_locked(struct mlx5_eswitch *esw,
 	}
 
 	/* Star rule to forward all traffic to uplink vport */
-	memset(spec, 0, sizeof(*spec));
 	memset(&dest, 0, sizeof(dest));
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
 	dest.vport.num = MLX5_VPORT_UPLINK;
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
-	flow_rule = mlx5_add_flow_rules(esw->fdb_table.legacy.vepa_fdb, spec,
+	flow_rule = mlx5_add_flow_rules(esw->fdb_table.legacy.vepa_fdb, NULL,
 					&flow_act, &dest, 1);
 	if (IS_ERR(flow_rule)) {
 		err = PTR_ERR(flow_rule);

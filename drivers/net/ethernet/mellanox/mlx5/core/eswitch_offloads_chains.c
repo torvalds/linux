@@ -410,7 +410,6 @@ mlx5_esw_chains_add_miss_rule(struct fdb_chain *fdb_chain,
 			      struct mlx5_flow_table *fdb,
 			      struct mlx5_flow_table *next_fdb)
 {
-	static const struct mlx5_flow_spec spec = {};
 	struct mlx5_eswitch *esw = fdb_chain->esw;
 	struct mlx5_flow_destination dest = {};
 	struct mlx5_flow_act act = {};
@@ -425,7 +424,7 @@ mlx5_esw_chains_add_miss_rule(struct fdb_chain *fdb_chain,
 		act.action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
 	}
 
-	return mlx5_add_flow_rules(fdb, &spec, &act, &dest, 1);
+	return mlx5_add_flow_rules(fdb, NULL, &act, &dest, 1);
 }
 
 static int

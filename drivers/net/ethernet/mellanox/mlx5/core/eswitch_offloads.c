@@ -1881,7 +1881,6 @@ static int esw_vport_add_ingress_acl_modify_metadata(struct mlx5_eswitch *esw,
 						     struct mlx5_vport *vport)
 {
 	u8 action[MLX5_UN_SZ_BYTES(set_action_in_add_action_in_auto)] = {};
-	static const struct mlx5_flow_spec spec = {};
 	struct mlx5_flow_act flow_act = {};
 	int err = 0;
 	u32 key;
@@ -1913,7 +1912,7 @@ static int esw_vport_add_ingress_acl_modify_metadata(struct mlx5_eswitch *esw,
 	flow_act.modify_hdr = vport->ingress.offloads.modify_metadata;
 	vport->ingress.offloads.modify_metadata_rule =
 				mlx5_add_flow_rules(vport->ingress.acl,
-						    &spec, &flow_act, NULL, 0);
+						    NULL, &flow_act, NULL, 0);
 	if (IS_ERR(vport->ingress.offloads.modify_metadata_rule)) {
 		err = PTR_ERR(vport->ingress.offloads.modify_metadata_rule);
 		esw_warn(esw->dev,
