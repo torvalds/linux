@@ -4780,15 +4780,14 @@ intel_ddi_max_lanes(struct intel_digital_port *intel_dport)
 
 void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 {
-	struct ddi_vbt_port_info *port_info =
-		&dev_priv->vbt.ddi_port_info[port];
 	struct intel_digital_port *intel_dig_port;
 	struct intel_encoder *encoder;
 	bool init_hdmi, init_dp, init_lspcon = false;
 	enum phy phy = intel_port_to_phy(dev_priv, port);
 
-	init_hdmi = port_info->supports_dvi || port_info->supports_hdmi;
-	init_dp = port_info->supports_dp;
+	init_hdmi = intel_bios_port_supports_dvi(dev_priv, port) ||
+		intel_bios_port_supports_hdmi(dev_priv, port);
+	init_dp = intel_bios_port_supports_dp(dev_priv, port);
 
 	if (intel_bios_is_lspcon_present(dev_priv, port)) {
 		/*
@@ -4849,8 +4848,9 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	intel_dig_port->aux_ch = intel_bios_port_aux_ch(dev_priv, port);
 
 	if (intel_phy_is_tc(dev_priv, phy)) {
-		bool is_legacy = !port_info->supports_typec_usb &&
-				 !port_info->supports_tbt;
+		bool is_legacy =
+			!intel_bios_port_supports_typec_usb(dev_priv, port) &&
+			!intel_bios_port_supports_tbt(dev_priv, port);
 
 		intel_tc_port_init(intel_dig_port, is_legacy);
 

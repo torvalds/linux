@@ -2606,3 +2606,29 @@ int intel_bios_alternate_ddc_pin(struct intel_encoder *encoder)
 
 	return i915->vbt.ddi_port_info[encoder->port].alternate_ddc_pin;
 }
+
+bool intel_bios_port_supports_dvi(struct drm_i915_private *i915, enum port port)
+{
+	return i915->vbt.ddi_port_info[port].supports_dvi;
+}
+
+bool intel_bios_port_supports_hdmi(struct drm_i915_private *i915, enum port port)
+{
+	return i915->vbt.ddi_port_info[port].supports_hdmi;
+}
+
+bool intel_bios_port_supports_dp(struct drm_i915_private *i915, enum port port)
+{
+	return i915->vbt.ddi_port_info[port].supports_dp;
+}
+
+bool intel_bios_port_supports_typec_usb(struct drm_i915_private *i915,
+					enum port port)
+{
+	return i915->vbt.ddi_port_info[port].supports_typec_usb;
+}
+
+bool intel_bios_port_supports_tbt(struct drm_i915_private *i915, enum port port)
+{
+	return i915->vbt.ddi_port_info[port].supports_tbt;
+}
