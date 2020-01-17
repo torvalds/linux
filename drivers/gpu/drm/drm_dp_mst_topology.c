@@ -3485,7 +3485,9 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 		drm_dp_mst_topology_get_mstb(mgr->mst_primary);
 
 		ret = drm_dp_dpcd_writeb(mgr->aux, DP_MSTM_CTRL,
-							 DP_MST_EN | DP_UP_REQ_EN | DP_UPSTREAM_IS_SRC);
+					 DP_MST_EN |
+					 DP_UP_REQ_EN |
+					 DP_UPSTREAM_IS_SRC);
 		if (ret < 0)
 			goto out_unlock;
 
