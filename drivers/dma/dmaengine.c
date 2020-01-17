@@ -60,6 +60,8 @@ static long dmaengine_ref_count;
 
 /* --- sysfs implementation --- */
 
+#define DMA_SLAVE_NAME	"slave"
+
 /**
  * dev_to_dma_chan - convert a device pointer to its sysfs container object
  * @dev - device node
@@ -730,11 +732,11 @@ struct dma_chan *dma_request_chan(struct device *dev, const char *name)
 	if (has_acpi_companion(dev) && !chan)
 		chan = acpi_dma_request_slave_chan_by_name(dev, name);
 
-	if (chan) {
-		/* Valid channel found or requester needs to be deferred */
-		if (!IS_ERR(chan) || PTR_ERR(chan) == -EPROBE_DEFER)
-			return chan;
-	}
+	if (PTR_ERR(chan) == -EPROBE_DEFER)
+		return chan;
+
+	if (!IS_ERR_OR_NULL(chan))
+		goto found;
 
 	/* Try to find the channel via the DMA filter map(s) */
 	mutex_lock(&dma_list_mutex);
@@ -754,7 +756,23 @@ struct dma_chan *dma_request_chan(struct device *dev, const char *name)
 	}
 	mutex_unlock(&dma_list_mutex);
 
-	return chan ? chan : ERR_PTR(-EPROBE_DEFER);
+	if (!IS_ERR_OR_NULL(chan))
+		goto found;
+
+	return ERR_PTR(-EPROBE_DEFER);
+
+found:
+	chan->slave = dev;
+	chan->name = kasprintf(GFP_KERNEL, "dma:%s", name);
+	if (!chan->name)
+		return ERR_PTR(-ENOMEM);
+
+	if (sysfs_create_link(&chan->dev->device.kobj, &dev->kobj,
+			      DMA_SLAVE_NAME))
+		dev_err(dev, "Cannot create DMA %s symlink\n", DMA_SLAVE_NAME);
+	if (sysfs_create_link(&dev->kobj, &chan->dev->device.kobj, chan->name))
+		dev_err(dev, "Cannot create DMA %s symlink\n", chan->name);
+	return chan;
 }
 EXPORT_SYMBOL_GPL(dma_request_chan);
 
@@ -812,6 +830,13 @@ void dma_release_channel(struct dma_chan *chan)
 	/* drop PRIVATE cap enabled by __dma_request_channel() */
 	if (--chan->device->privatecnt == 0)
 		dma_cap_clear(DMA_PRIVATE, chan->device->cap_mask);
+	if (chan->slave) {
+		sysfs_remove_link(&chan->slave->kobj, chan->name);
+		kfree(chan->name);
+		chan->name = NULL;
+		chan->slave = NULL;
+	}
+	sysfs_remove_link(&chan->dev->device.kobj, DMA_SLAVE_NAME);
 	mutex_unlock(&dma_list_mutex);
 }
 EXPORT_SYMBOL_GPL(dma_release_channel);

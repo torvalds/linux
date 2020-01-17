@@ -294,10 +294,12 @@ struct dma_router {
 /**
  * struct dma_chan - devices supply DMA channels, clients use them
  * @device: ptr to the dma device who supplies this channel, always !%NULL
+ * @slave: ptr to the device using this channel
  * @cookie: last cookie value returned to client
  * @completed_cookie: last completed cookie for this channel
  * @chan_id: channel ID for sysfs
  * @dev: class device for sysfs
+ * @name: backlink name for sysfs
  * @device_node: used to add this to the device chan list
  * @local: per-cpu pointer to a struct dma_chan_percpu
  * @client_count: how many clients are using this channel
@@ -308,12 +310,14 @@ struct dma_router {
  */
 struct dma_chan {
 	struct dma_device *device;
+	struct device *slave;
 	dma_cookie_t cookie;
 	dma_cookie_t completed_cookie;
 
 	/* sysfs */
 	int chan_id;
 	struct dma_chan_dev *dev;
+	const char *name;
 
 	struct list_head device_node;
 	struct dma_chan_percpu __percpu *local;
